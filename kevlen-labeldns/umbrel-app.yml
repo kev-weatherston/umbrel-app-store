@@ -1,0 +1,16 @@
+manifestVersion: 1
+id: kevlen-labeldns
+name: Label DNS
+tagline: Docker Label DNS Management
+icon: https://svgur.com/i/mvA.svg
+category: Utility
+version: "1.0.0"
+port: 53
+description: >-
+  Docker Label DNS Management
+releaseNotes: >-
+  Add what's new in the latest version of your app here.
+dependencies: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""

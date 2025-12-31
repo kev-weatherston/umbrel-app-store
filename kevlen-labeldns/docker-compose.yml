@@ -1,0 +1,31 @@
+version: "3.7"
+
+services:
+
+  #app_proxy:
+    #environment:
+      # The format here is: <app-id>_<docker-service-name>_1
+      #APP_HOST: kevlen_labeldns_server_1
+      #APP_PORT: 3000
+    
+  labeldns:
+    container_name: labeldns
+    image: registry.kevlen.me/labeldns:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - 5353:5353
+    environment:
+      TZ: $TZ
+      LABELDNS_FORWARDERS: '8.8.8.8, 8.8.4.4'
+      LABELDNS_PRIMARY: false
+      LABELDNS_PRIMARY_URL: 'http://10.0.1.10:5353/getconfig'
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    restart: unless-stopped
+    healthcheck: 
+      interval: 5m 
+      retries: 5 
+      start_period: 2m 
+      test: curl --fail http://localhost:5353/healthcheck || exit 1
+      timeout: 20s
