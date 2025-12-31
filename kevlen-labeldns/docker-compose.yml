@@ -2,19 +2,19 @@ version: "3.7"
 
 services:
 
-  #app_proxy:
-    #environment:
+  app_proxy:
+    environment:
       # The format here is: <app-id>_<docker-service-name>_1
-      #APP_HOST: kevlen_labeldns_server_1
-      #APP_PORT: 3000
+      APP_HOST: kevlen_labeldns_server_1
+      APP_PORT: 53
     
-  labeldns:
+  server:
     container_name: labeldns
     image: registry.kevlen.me/labeldns:latest
     ports:
       - "53:53/tcp"
       - "53:53/udp"
-      - 5353:5353
+      #- 5353:5353
     environment:
       TZ: $TZ
       LABELDNS_FORWARDERS: '8.8.8.8, 8.8.4.4'
