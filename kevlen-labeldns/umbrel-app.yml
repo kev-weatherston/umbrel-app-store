@@ -8,6 +8,15 @@ version: "1.0.0"
 port: 53
 description: >-
   Docker Label DNS Management
+developer: kevin
+website: https://umbrel.com
+submitter: kevin
+submission: https://github.com/kev-weatherston/labeldns
+repo: https://github.com/kev-weatherston/labeldns
+support: https://github.com/kev-weatherston/labeldns/issues
+gallery: []
+releaseNotes: >-
+  Add what's new in the latest version of your app here.
 releaseNotes: >-
   Add what's new in the latest version of your app here.
 dependencies: []
