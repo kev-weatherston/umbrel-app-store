@@ -124,15 +124,24 @@ export default function WidgetPage() {
               }) + 1
             : null;
 
+          // Generate unique key
+          const teamKey = team.teamId || team.team?.id || team.teamAbbrev || `team-${teamId}`;
+          const uniqueKey = typeof teamKey === 'object' && 'default' in teamKey 
+            ? teamKey.default 
+            : String(teamKey);
+
           return (
             <div
-              key={team.team.id}
+              key={uniqueKey}
               className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {team.placeName?.default || team.teamName || team.team?.name || 'Unknown'}
+                    {team.placeName?.default || 
+                     (team.teamName && typeof team.teamName === 'object' ? team.teamName.default : team.teamName) || 
+                     team.team?.name || 
+                     'Unknown'}
                   </span>
                 </div>
                 <div className="text-right">

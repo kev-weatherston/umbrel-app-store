@@ -48,7 +48,7 @@ export async function fetchStandings(): Promise<StandingsResponse> {
       // Legacy structure with records array
       standingsData = data as StandingsResponse;
       // Also set standings for consistency
-      if (!standingsData.standings) {
+      if (!standingsData.standings && standingsData.records) {
         standingsData.standings = standingsData.records;
       }
     } else {
@@ -97,12 +97,19 @@ export function getAllTeams(standings: StandingsResponse | null): TeamRecord[] {
   }
   
   // If records contain teamRecords (grouped structure), flatten them
-  if (records.length > 0 && records[0].teamRecords) {
-    return records.flatMap(record => record.teamRecords || []);
+  if (records.length > 0 && 'teamRecords' in records[0] && Array.isArray(records[0].teamRecords)) {
+    return records.flatMap((record: any) => record.teamRecords || []);
   }
   
   // Otherwise, records are already flat team records
-  return records as TeamRecord[];
+  // Check if it's actually TeamRecord[] by looking for teamAbbrev or teamId
+  if (records.length > 0 && ('teamAbbrev' in records[0] || 'teamId' in records[0])) {
+    return records as unknown as TeamRecord[];
+  }
+  
+  // Fallback: return empty array if structure is unclear
+  console.warn('Unable to determine team record structure');
+  return [];
 }
 
 /**
