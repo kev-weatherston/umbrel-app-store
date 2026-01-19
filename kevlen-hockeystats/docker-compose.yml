@@ -9,7 +9,7 @@ services:
       APP_PORT: 3000
     
   server:
-    build: .
+    image: openregistry.kevlen.me/hockeystats:latest
     user: "1000:1000"
     init: true
     restart: unless-stopped
