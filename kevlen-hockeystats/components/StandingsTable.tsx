@@ -5,9 +5,10 @@ interface StandingsTableProps {
   teams: TeamRecord[];
   showRank?: boolean;
   title?: string;
+  favoriteTeams?: string[];
 }
 
-export default function StandingsTable({ teams, showRank = true, title }: StandingsTableProps) {
+export default function StandingsTable({ teams, showRank = true, title, favoriteTeams = [] }: StandingsTableProps) {
   return (
     <div className="w-full overflow-x-auto">
       {title && (
@@ -27,6 +28,9 @@ export default function StandingsTable({ teams, showRank = true, title }: Standi
               Team
             </th>
             <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Pts
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
               GP
             </th>
             <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -38,20 +42,46 @@ export default function StandingsTable({ teams, showRank = true, title }: Standi
             <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
               OT
             </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Pts
-            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-          {teams.map((team, index) => (
-            <TeamRow
-              key={team.team.id}
-              team={team}
-              showRank={showRank}
-              rank={index + 1}
-            />
-          ))}
+          {teams.map((team, index) => {
+            // Use teamId from API or fallback to team.id for legacy structure
+            // Ensure key is always a primitive (string or number) and unique
+            let teamId: string | number;
+            if (typeof team.teamId === 'number') {
+              teamId = team.teamId;
+            } else if (typeof team.team?.id === 'number') {
+              teamId = team.team.id;
+            } else if (typeof team.teamAbbrev === 'string' && team.teamAbbrev) {
+              teamId = team.teamAbbrev;
+            } else {
+              // Fallback to index-based key if no valid ID found
+              teamId = `team-${index}`;
+            }
+            // Ensure uniqueness by combining with index if needed
+            const uniqueKey = typeof teamId === 'number' ? teamId : `${teamId}-${index}`;
+            // Check if team is a favorite
+            let teamAbbrev: string = '';
+            if (team.teamAbbrev && typeof team.teamAbbrev === 'object' && 'default' in team.teamAbbrev) {
+              teamAbbrev = (team.teamAbbrev as { default: string }).default;
+            } else if (typeof team.teamAbbrev === 'string') {
+              teamAbbrev = team.teamAbbrev;
+            } else if (typeof team.team?.abbreviation === 'string') {
+              teamAbbrev = team.team.abbreviation;
+            }
+            const isFavorite = favoriteTeams.includes(teamAbbrev);
+            
+            return (
+              <TeamRow
+                key={uniqueKey}
+                team={team}
+                showRank={showRank}
+                rank={index + 1}
+                isFavorite={isFavorite}
+              />
+            );
+          })}
         </tbody>
       </table>
     </div>

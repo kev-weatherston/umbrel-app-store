@@ -30,30 +30,90 @@ export interface Conference {
   link: string;
 }
 
+// NHL API returns flat team records with division/conference info embedded
 export interface TeamRecord {
-  team: Team;
-  leagueRecord: LeagueRecord;
-  regulationWins: number;
-  goalsAgainst: number;
-  goalsScored: number;
-  points: number;
-  divisionRank: string;
-  conferenceRank: string;
-  leagueRank: string;
-  wildCardRank: string;
-  row: number;
+  teamAbbrev: string | { default: string };
+  teamName: string | { default: string; fr?: string };
+  teamId: number;
+  conferenceAbbrev: string;
+  conferenceName: string;
+  conferenceHomeSequence?: number;
+  conferenceL10Sequence?: number;
+  conferenceRoadSequence?: number;
+  conferenceSequence: number;
+  divisionAbbrev: string;
+  divisionName: string;
+  divisionHomeSequence?: number;
+  divisionL10Sequence?: number;
+  divisionRoadSequence?: number;
+  divisionSequence: number;
+  date: string;
+  gameTypeId: number;
   gamesPlayed: number;
-  streak: {
-    streakType: string;
-    streakNumber: number;
-    streakCode: string;
+  goalDifferential: number;
+  goalDifferentialPctg: number;
+  goalAgainst: number;
+  goalFor: number;
+  goalsAgainstPerGame: number;
+  goalsForPerGame: number;
+  homeGamesPlayed: number;
+  homeGoalDifferential: number;
+  homeGoalsAgainst: number;
+  homeGoalsFor: number;
+  homeLosses: number;
+  homeOtLosses: number;
+  homePoints: number;
+  homeRegulationPlusOtWins: number;
+  homeRegulationWins: number;
+  homeTies: number;
+  homeWins: number;
+  l10GamesPlayed: number;
+  l10GoalDifferential: number;
+  l10GoalsAgainst: number;
+  l10GoalsFor: number;
+  l10Losses: number;
+  l10OtLosses: number;
+  l10Points: number;
+  l10RegulationPlusOtWins: number;
+  l10RegulationWins: number;
+  l10Ties: number;
+  l10Wins: number;
+  leagueHomeSequence?: number;
+  leagueL10Sequence?: number;
+  leagueRoadSequence?: number;
+  leagueSequence: number;
+  losses: number;
+  otLosses: number;
+  placeName: {
+    default: string;
   };
-  clinchIndicator?: string;
-  pointsPercentage: number;
-  ppDivisionRank?: string;
-  ppConferenceRank?: string;
-  ppLeagueRank?: string;
-  lastUpdated: string;
+  pointPctg: number;
+  points: number;
+  regulationPlusOtWins: number;
+  regulationWins: number;
+  roadGamesPlayed: number;
+  roadGoalDifferential: number;
+  roadGoalsAgainst: number;
+  roadGoalsFor: number;
+  roadLosses: number;
+  roadOtLosses: number;
+  roadPoints: number;
+  roadRegulationPlusOtWins: number;
+  roadRegulationWins: number;
+  roadTies: number;
+  roadWins: number;
+  seasonId: number;
+  shootoutLosses: number;
+  shootoutWins: number;
+  streakCode: string;
+  streakCount: number;
+  ties: number;
+  waiversSequence?: number;
+  wildcardSequence?: number;
+  wins: number;
+  // Legacy fields for compatibility
+  team?: Team;
+  leagueRecord?: LeagueRecord;
 }
 
 export interface StandingsRecord {
@@ -69,7 +129,11 @@ export interface StandingsRecord {
 }
 
 export interface StandingsResponse {
-  records: StandingsRecord[];
+  wildCardIndicator?: boolean;
+  standingsDateTimeUtc?: string;
+  standings: StandingsRecord[];
+  // Legacy support for 'records' field
+  records?: StandingsRecord[];
 }
 
 export interface StandingsCache {

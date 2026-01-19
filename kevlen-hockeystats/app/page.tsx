@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { StandingsResponse } from '@/lib/types';
-import { getAllTeams, sortTeamsByPoints } from '@/lib/nhl-api';
+import { StandingsResponse, StandingsRecord } from '@/lib/types';
+import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision } from '@/lib/nhl-api';
 import StandingsTable from '@/components/StandingsTable';
-import StandingsByDivision from '@/components/StandingsByDivision';
+
+const FAVORITE_TEAMS = ['TOR', 'EDM'];
 
 export default function HomePage() {
   const [standings, setStandings] = useState<StandingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('overall');
 
   useEffect(() => {
     async function fetchData() {
@@ -32,6 +34,27 @@ export default function HomePage() {
 
     fetchData();
   }, []);
+
+  // Calculate tabs data (this runs on every render but hooks are stable)
+  const allTeams = standings ? getAllTeams(standings) : [];
+  const overallTeams = standings ? sortTeamsByPoints(allTeams) : [];
+  const divisionRecords = standings ? groupTeamsByDivision(allTeams) : [];
+  
+  const tabs = standings ? [
+    { id: 'overall', label: 'Overall', teams: overallTeams },
+    ...divisionRecords.map((record) => ({
+      id: record.division.name || record.division.abbreviation || 'unknown',
+      label: record.division.name || record.division.nameShort || 'Unknown',
+      teams: record.teamRecords,
+    })),
+  ] : [];
+
+  // Update activeTab if it's not in the tabs list (e.g., if data changed)
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.find(tab => tab.id === activeTab)) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [tabs, activeTab]);
 
   if (loading) {
     return (
@@ -68,7 +91,49 @@ export default function HomePage() {
     );
   }
 
-  const overallTeams = sortTeamsByPoints(getAllTeams(standings));
+  // Use standings array (current API) or records array (legacy)
+  const records = standings?.standings || standings?.records;
+  
+  if (!standings || !records || !Array.isArray(records)) {
+    if (error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 dark:text-red-400 text-lg mb-4">Error: {error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (!standings) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 dark:text-red-400 text-lg mb-4">
+              Invalid standings data structure
+            </p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+              Received: {JSON.stringify(Object.keys(standings || {}))}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+  
+  const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0];
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -82,21 +147,37 @@ export default function HomePage() {
           </p>
         </header>
 
-        <div className="space-y-12">
-          <section>
-            <StandingsTable
-              teams={overallTeams}
-              showRank={true}
-              title="Overall League Standings"
-            />
-          </section>
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                  transition-colors
+                  ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-          <section>
-            <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">
-              Standings by Division
-            </h2>
-            <StandingsByDivision records={standings.records} />
-          </section>
+        {/* Tab Content */}
+        <div>
+          <StandingsTable
+            teams={activeTabData?.teams || []}
+            showRank={true}
+            title={activeTab === 'overall' ? undefined : activeTabData?.label}
+            favoriteTeams={FAVORITE_TEAMS}
+          />
         </div>
       </div>
     </div>

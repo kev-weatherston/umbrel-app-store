@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { StandingsResponse, TeamRecord } from '@/lib/types';
-import { getAllTeams, sortTeamsByPoints } from '@/lib/nhl-api';
-import StandingsTable from '@/components/StandingsTable';
+import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision } from '@/lib/nhl-api';
 
 const WIDGET_TEAMS = ['EDM', 'TOR']; // Edmonton Oilers and Toronto Maple Leafs
 
@@ -59,11 +58,33 @@ export default function WidgetPage() {
     );
   }
 
+  // Use standings array (current API) or records array (legacy)
+  const records = standings.standings || standings.records;
+  
+  if (!records || !Array.isArray(records)) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-600 dark:text-red-400 text-sm">
+          Invalid standings data structure
+        </p>
+      </div>
+    );
+  }
+
   // Filter for EDM and TOR teams
   const allTeams = getAllTeams(standings);
-  const widgetTeams = allTeams.filter((team: TeamRecord) =>
-    WIDGET_TEAMS.includes(team.team.abbreviation)
-  );
+  const widgetTeams = allTeams.filter((team: TeamRecord) => {
+    // Extract abbreviation from object or string
+    let abbrev: string;
+    if (team.teamAbbrev && typeof team.teamAbbrev === 'object' && 'default' in team.teamAbbrev) {
+      abbrev = team.teamAbbrev.default;
+    } else if (typeof team.teamAbbrev === 'string') {
+      abbrev = team.teamAbbrev;
+    } else {
+      abbrev = team.team?.abbreviation || '';
+    }
+    return WIDGET_TEAMS.includes(abbrev);
+  });
 
   // Sort by points
   const sortedWidgetTeams = sortTeamsByPoints(widgetTeams);
@@ -71,9 +92,16 @@ export default function WidgetPage() {
   // Get overall ranks
   const overallTeams = sortTeamsByPoints(allTeams);
   const teamsWithRanks = sortedWidgetTeams.map((team: TeamRecord) => {
-    const overallRank = overallTeams.findIndex((t: TeamRecord) => t.team.id === team.team.id) + 1;
+    const teamId = team.teamId || team.team?.id || 0;
+    const overallRank = overallTeams.findIndex((t: TeamRecord) => {
+      const tId = t.teamId || t.team?.id || 0;
+      return tId === teamId;
+    }) + 1;
     return { ...team, overallRank };
   });
+
+  // Group teams by division for finding division ranks
+  const divisionRecords = groupTeamsByDivision(allTeams);
 
   return (
     <div className="p-4 bg-white dark:bg-gray-900">
@@ -82,11 +110,18 @@ export default function WidgetPage() {
       </h2>
       <div className="space-y-4">
         {teamsWithRanks.map((team: TeamRecord & { overallRank: number }) => {
-          const divisionRecord = standings.records.find((record) =>
-            record.teamRecords.some((tr) => tr.team.id === team.team.id)
+          const teamId = team.teamId || team.team?.id || 0;
+          const divisionRecord = divisionRecords.find((record) =>
+            record.teamRecords?.some((tr) => {
+              const trId = tr.teamId || tr.team?.id || 0;
+              return trId === teamId;
+            })
           );
           const divisionRank = divisionRecord
-            ? divisionRecord.teamRecords.findIndex((tr) => tr.team.id === team.team.id) + 1
+            ? divisionRecord.teamRecords.findIndex((tr) => {
+                const trId = tr.teamId || tr.team?.id || 0;
+                return trId === teamId;
+              }) + 1
             : null;
 
           return (
@@ -97,7 +132,7 @@ export default function WidgetPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {team.team.name}
+                    {team.placeName?.default || team.teamName || team.team?.name || 'Unknown'}
                   </span>
                 </div>
                 <div className="text-right">
@@ -121,19 +156,19 @@ export default function WidgetPage() {
                 <div>
                   <div className="text-gray-500 dark:text-gray-400">W</div>
                   <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {team.leagueRecord.wins}
+                    {team.wins || team.leagueRecord?.wins || 0}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-500 dark:text-gray-400">L</div>
                   <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {team.leagueRecord.losses}
+                    {team.losses || team.leagueRecord?.losses || 0}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-500 dark:text-gray-400">OT</div>
                   <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {team.leagueRecord.ot}
+                    {team.otLosses || team.leagueRecord?.ot || 0}
                   </div>
                 </div>
                 <div>
