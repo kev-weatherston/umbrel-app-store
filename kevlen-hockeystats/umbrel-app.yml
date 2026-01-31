@@ -4,10 +4,10 @@ name: HockeyStats
 tagline: NHL Standings and Statistics
 icon: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats/hockey.png
 category: Sports
-version: "1.1.0"
+version: "1.1.1"
 port: 3000
 description: >-
-  View current NHL season team standings, grouped by overall league and division.
+  View current NHL season leaderboard including player goals and points, as well as, team standings, grouped by overall league and division.
   Displays team logos, points, games played, wins, losses, and ties.
   Includes a widget view for Edmonton Oilers and Toronto Maple Leafs.
   

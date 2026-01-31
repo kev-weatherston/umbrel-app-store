@@ -1,5 +1,5 @@
 import * as cron from 'node-cron';
-import { refreshStandings } from './cache';
+import { refreshStandings, refreshPlayerLeaders } from './cache';
 
 let cronJob: cron.ScheduledTask | null = null;
 let isInitialized = false;
@@ -27,7 +27,10 @@ export function startScheduler(): void {
   cronJob = cron.schedule(cronExpression, async () => {
     console.log('Scheduled refresh triggered at 6:00 AM');
     try {
-      await refreshStandings();
+      await Promise.all([
+        refreshStandings(),
+        refreshPlayerLeaders(),
+      ]);
     } catch (error) {
       console.error('Error during scheduled refresh:', error);
     }

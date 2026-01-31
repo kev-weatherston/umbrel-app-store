@@ -140,3 +140,98 @@ export interface StandingsCache {
   data: StandingsResponse;
   lastUpdated: Date;
 }
+
+// Player Statistics Types
+export interface Player {
+  id: number;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  primaryNumber: string;
+  birthDate: string;
+  currentAge: number;
+  birthCity?: string;
+  birthStateProvince?: string;
+  birthCountry: string;
+  nationality: string;
+  height: string;
+  weight: number;
+  active: boolean;
+  alternateCaptain: boolean;
+  captain: boolean;
+  rookie: boolean;
+  shootsCatches: string;
+  rosterStatus: string;
+  currentTeam?: {
+    id: number;
+    name: string;
+    link: string;
+  };
+  primaryPosition: {
+    code: string;
+    name: string;
+    type: string;
+    abbreviation: string;
+  };
+}
+
+export interface PlayerStats {
+  player: Player;
+  team: {
+    id: number;
+    name: string;
+    link: string;
+  };
+  position: {
+    code: string;
+    name: string;
+    type: string;
+    abbreviation: string;
+  };
+  stats: {
+    type: {
+      displayName: string;
+    };
+    splits: Array<{
+      stat: {
+        goals: number;
+        assists: number;
+        points: number;
+        games: number;
+        pim: number;
+        shots: number;
+        hits: number;
+        powerPlayGoals: number;
+        powerPlayPoints: number;
+        gameWinningGoals: number;
+        overTimeGoals: number;
+        shortHandedGoals: number;
+        shortHandedPoints: number;
+        faceOffPct: number;
+        shotPct: number;
+        plusMinus: number;
+      };
+      team: {
+        id: number;
+        name: string;
+        link: string;
+      };
+    }>;
+  };
+}
+
+export interface PlayerLeader {
+  player: Player;
+  teamAbbrev: string;
+  teamId: number;
+  goals: number;
+  assists: number;
+  points: number;
+  games: number;
+  rank: number;
+}
+
+export interface PlayerLeadersResponse {
+  points: PlayerLeader[];
+  goals: PlayerLeader[];
+}

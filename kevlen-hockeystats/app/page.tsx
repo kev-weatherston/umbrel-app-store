@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { StandingsResponse, StandingsRecord } from '@/lib/types';
+import { StandingsResponse, StandingsRecord, PlayerLeader } from '@/lib/types';
 import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision } from '@/lib/nhl-api';
 import StandingsTable from '@/components/StandingsTable';
+import PlayerLeaderboard from '@/components/PlayerLeaderboard';
 
 const FAVORITE_TEAMS = ['TOR', 'EDM'];
 
 export default function HomePage() {
   const [standings, setStandings] = useState<StandingsResponse | null>(null);
+  const [playerLeaders, setPlayerLeaders] = useState<{ points: PlayerLeader[]; goals: PlayerLeader[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playersLoading, setPlayersLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overall');
 
@@ -32,7 +35,32 @@ export default function HomePage() {
       }
     }
 
+    async function fetchPlayerData() {
+      try {
+        setPlayersLoading(true);
+        const [pointsResponse, goalsResponse] = await Promise.all([
+          fetch('/api/players/leaders?type=points'),
+          fetch('/api/players/leaders?type=goals'),
+        ]);
+        
+        if (pointsResponse.ok && goalsResponse.ok) {
+          const pointsData = await pointsResponse.json();
+          const goalsData = await goalsResponse.json();
+          setPlayerLeaders({
+            points: pointsData.players || [],
+            goals: goalsData.players || [],
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching player leaders:', err);
+        // Don't set error state for players - allow standings to still show
+      } finally {
+        setPlayersLoading(false);
+      }
+    }
+
     fetchData();
+    fetchPlayerData();
   }, []);
 
   // Calculate tabs data (this runs on every render but hooks are stable)
@@ -40,13 +68,22 @@ export default function HomePage() {
   const overallTeams = standings ? sortTeamsByPoints(allTeams) : [];
   const divisionRecords = standings ? groupTeamsByDivision(allTeams) : [];
   
-  const tabs = standings ? [
-    { id: 'overall', label: 'Overall', teams: overallTeams },
+  const tabs: Array<{
+    id: string;
+    label: string;
+    type: 'standings' | 'players';
+    teams?: any[];
+    statType?: 'points' | 'goals';
+  }> = standings ? [
+    { id: 'overall', label: 'Overall', type: 'standings', teams: overallTeams },
     ...divisionRecords.map((record) => ({
       id: record.division.name || record.division.abbreviation || 'unknown',
       label: record.division.name || record.division.nameShort || 'Unknown',
+      type: 'standings' as const,
       teams: record.teamRecords,
     })),
+    { id: 'point-leaders', label: 'Point Leaders', type: 'players' as const, statType: 'points' as const },
+    { id: 'goal-leaders', label: 'Goal Leaders', type: 'players' as const, statType: 'goals' as const },
   ] : [];
 
   // Update activeTab if it's not in the tabs list (e.g., if data changed)
@@ -172,12 +209,24 @@ export default function HomePage() {
 
         {/* Tab Content */}
         <div>
-          <StandingsTable
-            teams={activeTabData?.teams || []}
-            showRank={true}
-            title={activeTab === 'overall' ? undefined : activeTabData?.label}
-            favoriteTeams={FAVORITE_TEAMS}
-          />
+          {activeTabData?.type === 'players' ? (
+            <PlayerLeaderboard
+              players={
+                activeTabData.statType === 'goals'
+                  ? (playerLeaders?.goals || [])
+                  : (playerLeaders?.points || [])
+              }
+              statType={(activeTabData.statType || 'points') as 'points' | 'goals'}
+              loading={playersLoading}
+            />
+          ) : (
+            <StandingsTable
+              teams={activeTabData?.teams || []}
+              showRank={true}
+              title={activeTab === 'overall' ? undefined : activeTabData?.label}
+              favoriteTeams={FAVORITE_TEAMS}
+            />
+          )}
         </div>
       </div>
     </div>

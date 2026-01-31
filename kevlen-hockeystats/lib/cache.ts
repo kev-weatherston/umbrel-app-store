@@ -1,8 +1,10 @@
-import { StandingsResponse, StandingsCache } from './types';
-import { fetchStandings } from './nhl-api';
+import { StandingsResponse, StandingsCache, PlayerLeadersResponse } from './types';
+import { fetchStandings, fetchPlayerLeaders } from './nhl-api';
 
 let cache: StandingsCache | null = null;
+let playerLeadersCache: { data: PlayerLeadersResponse; lastUpdated: Date } | null = null;
 let isRefreshing = false;
+let isRefreshingPlayers = false;
 
 /**
  * Gets cached standings data
@@ -62,11 +64,64 @@ export function getLastUpdated(): Date | null {
 }
 
 /**
+ * Gets cached player leaders data
+ * @returns PlayerLeadersResponse or null if cache is empty
+ */
+export function getPlayerLeaders(): PlayerLeadersResponse | null {
+  return playerLeadersCache?.data || null;
+}
+
+/**
+ * Refreshes player leaders data from NHL API and updates cache
+ * @returns Promise<PlayerLeadersResponse>
+ */
+export async function refreshPlayerLeaders(): Promise<PlayerLeadersResponse> {
+  if (isRefreshingPlayers) {
+    // If already refreshing, wait for existing refresh to complete
+    while (isRefreshingPlayers) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (playerLeadersCache) {
+      return playerLeadersCache.data;
+    }
+  }
+
+  isRefreshingPlayers = true;
+  try {
+    console.log('Refreshing player leaders from API...');
+    const [pointsLeaders, goalsLeaders] = await Promise.all([
+      fetchPlayerLeaders('points', 25),
+      fetchPlayerLeaders('goals', 25),
+    ]);
+    
+    const data: PlayerLeadersResponse = {
+      points: pointsLeaders,
+      goals: goalsLeaders,
+    };
+    
+    playerLeadersCache = {
+      data,
+      lastUpdated: new Date(),
+    };
+    console.log(`Player leaders refreshed successfully at ${playerLeadersCache.lastUpdated.toISOString()}`);
+    return data;
+  } catch (error) {
+    console.error('Error refreshing player leaders:', error);
+    throw error;
+  } finally {
+    isRefreshingPlayers = false;
+  }
+}
+
+/**
  * Initializes cache on module load (startup refresh)
  */
 async function initializeCache() {
   try {
-    await refreshStandings();
+    await Promise.all([
+      refreshStandings(),
+      refreshPlayerLeaders(),
+    ]);
   } catch (error) {
     console.error('Failed to initialize cache on startup:', error);
     // Don't throw - allow app to start even if initial fetch fails

@@ -1,4 +1,4 @@
-import { StandingsResponse, TeamRecord, StandingsRecord } from './types';
+import { StandingsResponse, TeamRecord, StandingsRecord, PlayerLeader, PlayerStats } from './types';
 
 const NHL_API_BASE_URL = 'https://api-web.nhle.com/v1/standings/now';
 
@@ -168,4 +168,143 @@ export function groupTeamsByDivision(teams: TeamRecord[]): StandingsRecord[] {
  */
 export function sortTeamsByPoints(teams: TeamRecord[]) {
   return [...teams].sort((a, b) => b.points - a.points);
+}
+
+/**
+ * Fetches player leaders from NHL Stats API
+ * Uses statsapi.web.nhl.com to get player statistics
+ * @param statType 'points' or 'goals'
+ * @param limit Number of players to return (default: 25)
+ * @returns Promise<PlayerLeader[]>
+ */
+export async function fetchPlayerLeaders(statType: 'points' | 'goals', limit: number = 25): Promise<PlayerLeader[]> {
+  try {
+    // Determine current season (format: YYYY0YYYY+1, e.g., 20242025)
+    const currentYear = new Date().getFullYear();
+    const month = new Date().getMonth(); // 0-11
+    // If we're before July, use previous season
+    const seasonStartYear = month < 6 ? currentYear - 1 : currentYear;
+    const seasonEndYear = seasonStartYear + 1;
+    const seasonId = `${seasonStartYear}${seasonEndYear}`;
+    
+    // NHL Stats API: Get all teams first, then get player stats
+    // We'll use the stats endpoint with expand parameters
+    // Format: https://statsapi.web.nhl.com/api/v1/people/{playerId}/stats?stats=statsSingleSeason&season={season}
+    
+    // First, get all teams to get their rosters
+    const teamsResponse = await fetch(
+      `https://statsapi.web.nhl.com/api/v1/teams?expand=team.roster&season=${seasonId}`,
+      { 
+        cache: 'no-store',
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+    
+    if (!teamsResponse.ok) {
+      throw new Error(`NHL Stats API error: ${teamsResponse.status} ${teamsResponse.statusText}`);
+    }
+
+    const teamsData = await teamsResponse.json();
+    const allPlayers: PlayerLeader[] = [];
+    const playerPromises: Promise<void>[] = [];
+
+    // Collect all player IDs first
+    const playerIds: Array<{ id: number; team: any; person: any }> = [];
+    for (const team of teamsData.teams || []) {
+      if (!team.roster || !team.roster.roster) continue;
+      
+      for (const rosterEntry of team.roster.roster) {
+        if (rosterEntry.person.primaryPosition.type !== 'Forward' && 
+            rosterEntry.person.primaryPosition.type !== 'Defenseman') {
+          continue; // Skip goalies
+        }
+        playerIds.push({ id: rosterEntry.person.id, team, person: rosterEntry.person });
+      }
+    }
+
+    // Fetch stats for players in batches (limit to top teams' players for performance)
+    // In production, you'd want to fetch all players, but for now we'll limit
+    const maxPlayersToFetch = 200; // Reasonable limit to avoid timeout
+    const playersToFetch = playerIds.slice(0, maxPlayersToFetch);
+
+    // Fetch player stats in parallel batches
+    const batchSize = 10;
+    for (let i = 0; i < playersToFetch.length; i += batchSize) {
+      const batch = playersToFetch.slice(i, i + batchSize);
+      const batchPromises = batch.map(async ({ id, team, person }) => {
+        try {
+          const playerStatsResponse = await fetch(
+            `https://statsapi.web.nhl.com/api/v1/people/${id}/stats?stats=statsSingleSeason&season=${seasonId}`,
+            { 
+              cache: 'no-store',
+              headers: {
+                'Accept': 'application/json',
+              },
+            }
+          );
+
+          if (!playerStatsResponse.ok) return;
+
+          const playerStatsData = await playerStatsResponse.json();
+          const stats = playerStatsData.stats?.[0]?.splits?.[0]?.stat;
+          
+          if (!stats || stats.games === 0) return;
+
+          const playerLeader: PlayerLeader = {
+            player: person,
+            teamAbbrev: team.abbreviation || getTeamAbbrevFromId(team.id),
+            teamId: team.id,
+            goals: stats.goals || 0,
+            assists: stats.assists || 0,
+            points: stats.points || 0,
+            games: stats.games || 0,
+            rank: 0, // Will be set after sorting
+          };
+
+          allPlayers.push(playerLeader);
+        } catch (err) {
+          // Skip players that fail to fetch
+          return;
+        }
+      });
+      
+      // Wait for batch to complete before starting next batch
+      await Promise.all(batchPromises);
+    }
+
+    // Sort by the requested stat type and take top N
+    const sorted = allPlayers.sort((a, b) => {
+      const aStat = statType === 'points' ? a.points : a.goals;
+      const bStat = statType === 'points' ? b.points : b.goals;
+      return bStat - aStat;
+    });
+
+    // Assign ranks and limit results
+    return sorted.slice(0, limit).map((player, index) => ({
+      ...player,
+      rank: index + 1,
+    }));
+  } catch (error) {
+    console.error(`Error fetching ${statType} leaders:`, error);
+    // Return empty array instead of throwing to allow app to continue
+    return [];
+  }
+}
+
+/**
+ * Gets team abbreviation from team ID
+ * @param teamId Team ID
+ * @returns Team abbreviation
+ */
+export function getTeamAbbrevFromId(teamId: number): string {
+  // Team ID to abbreviation mapping (common NHL teams)
+  const teamMap: Record<number, string> = {
+    1: 'NJD', 2: 'NYI', 3: 'NYR', 4: 'PHI', 5: 'PIT', 6: 'BOS', 7: 'BUF', 8: 'MTL', 9: 'OTT',
+    10: 'TOR', 12: 'CAR', 13: 'FLA', 14: 'TBL', 15: 'WSH', 16: 'CHI', 17: 'DET', 18: 'NSH',
+    19: 'STL', 20: 'CGY', 21: 'COL', 22: 'EDM', 23: 'VAN', 24: 'ANA', 25: 'DAL', 26: 'LAK',
+    28: 'SJS', 29: 'CBJ', 30: 'MIN', 52: 'WPG', 53: 'ARI', 54: 'VGK', 55: 'SEA',
+  };
+  return teamMap[teamId] || 'UNK';
 }
