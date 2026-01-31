@@ -11,6 +11,8 @@ const nextConfig = {
       },
     ],
   },
+  // Note: We don't set X-Frame-Options header to allow iframe embedding in Umbrel
+  // Umbrel's proxy handles security, and apps should open in iframes by default
 }
 
 module.exports = nextConfig
