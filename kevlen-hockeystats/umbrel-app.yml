@@ -2,9 +2,9 @@ manifestVersion: 1
 id: kevlen-hockeystats
 name: HockeyStats
 tagline: NHL Standings and Statistics
-icon: https://svgur.com/i/mvA.svg
+icon: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats/hockey.png
 category: Sports
-version: "1.0.1"
+version: "1.1.0"
 port: 3000
 description: >-
   View current NHL season team standings, grouped by overall league and division.
@@ -14,7 +14,7 @@ description: >-
 developer: kevin
 website: https://umbrel.com
 submitter: kevin
-submission: https://github.com/kev-weatherston/umbrel-app-store/k`vlen-hockeystats
+submission: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats
 repo: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats
 support: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats/issues
 gallery:
