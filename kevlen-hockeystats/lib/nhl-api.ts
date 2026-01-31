@@ -21,15 +21,6 @@ export async function fetchStandings(): Promise<StandingsResponse> {
 
     const data = await response.json();
     
-    // Log the structure for debugging
-    console.log('NHL API response structure:', {
-      hasRecords: !!(data?.records),
-      isArray: Array.isArray(data?.records),
-      keys: Object.keys(data || {}),
-      recordsLength: data?.records?.length,
-      sampleData: JSON.stringify(data).substring(0, 500),
-    });
-    
     // Handle different possible response structures
     // The NHL API returns { standings: [...] } not { records: [...] }
     let standingsData: StandingsResponse;
@@ -171,123 +162,131 @@ export function sortTeamsByPoints(teams: TeamRecord[]) {
 }
 
 /**
- * Fetches player leaders from NHL Stats API
- * Uses statsapi.web.nhl.com to get player statistics
+ * Fetches player leaders from NHL API
+ * Uses api-web.nhle.com skater-stats-leaders endpoint (same API as standings)
  * @param statType 'points' or 'goals'
  * @param limit Number of players to return (default: 25)
  * @returns Promise<PlayerLeader[]>
  */
 export async function fetchPlayerLeaders(statType: 'points' | 'goals', limit: number = 25): Promise<PlayerLeader[]> {
   try {
-    // Determine current season (format: YYYY0YYYY+1, e.g., 20242025)
-    const currentYear = new Date().getFullYear();
-    const month = new Date().getMonth(); // 0-11
-    // If we're before July, use previous season
-    const seasonStartYear = month < 6 ? currentYear - 1 : currentYear;
-    const seasonEndYear = seasonStartYear + 1;
-    const seasonId = `${seasonStartYear}${seasonEndYear}`;
+    // Use the dedicated leaders endpoint from api-web.nhle.com (same API as standings)
+    const category = statType; // 'points' or 'goals'
+    const url = `https://api-web.nhle.com/v1/skater-stats-leaders/current?categories=${category}&limit=${limit}`;
     
-    // NHL Stats API: Get all teams first, then get player stats
-    // We'll use the stats endpoint with expand parameters
-    // Format: https://statsapi.web.nhl.com/api/v1/people/{playerId}/stats?stats=statsSingleSeason&season={season}
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    // First, get all teams to get their rosters
-    const teamsResponse = await fetch(
-      `https://statsapi.web.nhl.com/api/v1/teams?expand=team.roster&season=${seasonId}`,
-      { 
-        cache: 'no-store',
+    let response;
+    try {
+      response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
         },
-      }
-    );
-    
-    if (!teamsResponse.ok) {
-      throw new Error(`NHL Stats API error: ${teamsResponse.status} ${teamsResponse.statusText}`);
-    }
-
-    const teamsData = await teamsResponse.json();
-    const allPlayers: PlayerLeader[] = [];
-    const playerPromises: Promise<void>[] = [];
-
-    // Collect all player IDs first
-    const playerIds: Array<{ id: number; team: any; person: any }> = [];
-    for (const team of teamsData.teams || []) {
-      if (!team.roster || !team.roster.roster) continue;
-      
-      for (const rosterEntry of team.roster.roster) {
-        if (rosterEntry.person.primaryPosition.type !== 'Forward' && 
-            rosterEntry.person.primaryPosition.type !== 'Defenseman') {
-          continue; // Skip goalies
-        }
-        playerIds.push({ id: rosterEntry.person.id, team, person: rosterEntry.person });
-      }
-    }
-
-    // Fetch stats for players in batches (limit to top teams' players for performance)
-    // In production, you'd want to fetch all players, but for now we'll limit
-    const maxPlayersToFetch = 200; // Reasonable limit to avoid timeout
-    const playersToFetch = playerIds.slice(0, maxPlayersToFetch);
-
-    // Fetch player stats in parallel batches
-    const batchSize = 10;
-    for (let i = 0; i < playersToFetch.length; i += batchSize) {
-      const batch = playersToFetch.slice(i, i + batchSize);
-      const batchPromises = batch.map(async ({ id, team, person }) => {
-        try {
-          const playerStatsResponse = await fetch(
-            `https://statsapi.web.nhl.com/api/v1/people/${id}/stats?stats=statsSingleSeason&season=${seasonId}`,
-            { 
-              cache: 'no-store',
-              headers: {
-                'Accept': 'application/json',
-              },
-            }
-          );
-
-          if (!playerStatsResponse.ok) return;
-
-          const playerStatsData = await playerStatsResponse.json();
-          const stats = playerStatsData.stats?.[0]?.splits?.[0]?.stat;
-          
-          if (!stats || stats.games === 0) return;
-
-          const playerLeader: PlayerLeader = {
-            player: person,
-            teamAbbrev: team.abbreviation || getTeamAbbrevFromId(team.id),
-            teamId: team.id,
-            goals: stats.goals || 0,
-            assists: stats.assists || 0,
-            points: stats.points || 0,
-            games: stats.games || 0,
-            rank: 0, // Will be set after sorting
-          };
-
-          allPlayers.push(playerLeader);
-        } catch (err) {
-          // Skip players that fail to fetch
-          return;
-        }
+        cache: 'no-store',
+        signal: controller.signal,
       });
-      
-      // Wait for batch to complete before starting next batch
-      await Promise.all(batchPromises);
+    } finally {
+      clearTimeout(timeoutId);
     }
 
-    // Sort by the requested stat type and take top N
-    const sorted = allPlayers.sort((a, b) => {
-      const aStat = statType === 'points' ? a.points : a.goals;
-      const bStat = statType === 'points' ? b.points : b.goals;
-      return bStat - aStat;
+    if (!response.ok) {
+      throw new Error(`NHL API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Parse the response structure
+    // The API returns: { points: [...] } or { goals: [...] }
+    let players: any[] = [];
+    
+    if (data[category] && Array.isArray(data[category])) {
+      players = data[category];
+    } else if (Array.isArray(data)) {
+      players = data;
+    } else if (data.leaders && Array.isArray(data.leaders)) {
+      players = data.leaders;
+    } else if (data.data && Array.isArray(data.data)) {
+      players = data.data;
+    }
+    
+    // Transform API response to PlayerLeader format
+    const playerLeaders: PlayerLeader[] = players.map((item: any, index: number) => {
+      // Extract player info - firstName and lastName are objects with 'default' property
+      const firstName = typeof item.firstName === 'object' && item.firstName?.default 
+        ? item.firstName.default 
+        : (typeof item.firstName === 'string' ? item.firstName : '');
+      const lastName = typeof item.lastName === 'object' && item.lastName?.default 
+        ? item.lastName.default 
+        : (typeof item.lastName === 'string' ? item.lastName : '');
+      const fullName = `${firstName} ${lastName}`.trim() || 'Unknown';
+      
+      // Extract team info
+      const teamAbbrev = item.teamAbbrev || '';
+      // Map team abbreviation to team ID
+      const teamId = getTeamIdFromAbbrev(teamAbbrev);
+      
+      // Extract stats
+      // The 'value' field contains the stat (points or goals depending on category)
+      const statValue = item.value || 0;
+      // For this endpoint, we only get the primary stat (points or goals)
+      // We don't have assists or games in this response
+      // Note: For points leaders, we need to fetch goals separately, and vice versa
+      // For now, we'll show the primary stat and leave assists/games as 0
+      const goals = statType === 'goals' ? statValue : 0;
+      const points = statType === 'points' ? statValue : 0;
+      const assists = 0; // Not available in this endpoint response
+      const games = 0; // Not available in this endpoint response
+      
+      // Use headshot URL if available
+      const headshotUrl = item.headshot || '';
+      
+      return {
+        player: {
+          id: item.id || 0,
+          fullName,
+          firstName,
+          lastName,
+          primaryNumber: String(item.sweaterNumber || ''),
+          birthDate: '',
+          currentAge: 0,
+          birthCountry: '',
+          nationality: '',
+          height: '',
+          weight: 0,
+          active: true,
+          alternateCaptain: false,
+          captain: false,
+          rookie: false,
+          shootsCatches: '',
+          rosterStatus: '',
+          primaryPosition: {
+            code: item.position || '',
+            name: item.position || '',
+            type: '',
+            abbreviation: item.position || '',
+          },
+        },
+        teamAbbrev,
+        teamId,
+        goals,
+        assists,
+        points,
+        games,
+        rank: index + 1,
+        // Store headshot URL for use in component
+        headshotUrl,
+      };
     });
 
-    // Assign ranks and limit results
-    return sorted.slice(0, limit).map((player, index) => ({
-      ...player,
-      rank: index + 1,
-    }));
+    return playerLeaders;
   } catch (error) {
-    console.error(`Error fetching ${statType} leaders:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('fetch failed') || errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
+      console.warn(`Network error fetching ${statType} leaders:`, errorMessage);
+    } else {
+      console.error(`Error fetching ${statType} leaders:`, error);
+    }
     // Return empty array instead of throwing to allow app to continue
     return [];
   }
@@ -307,4 +306,20 @@ export function getTeamAbbrevFromId(teamId: number): string {
     28: 'SJS', 29: 'CBJ', 30: 'MIN', 52: 'WPG', 53: 'ARI', 54: 'VGK', 55: 'SEA',
   };
   return teamMap[teamId] || 'UNK';
+}
+
+/**
+ * Gets team ID from team abbreviation (reverse lookup)
+ * @param abbrev Team abbreviation
+ * @returns Team ID
+ */
+export function getTeamIdFromAbbrev(abbrev: string): number {
+  // Abbreviation to Team ID mapping
+  const abbrevMap: Record<string, number> = {
+    'NJD': 1, 'NYI': 2, 'NYR': 3, 'PHI': 4, 'PIT': 5, 'BOS': 6, 'BUF': 7, 'MTL': 8, 'OTT': 9,
+    'TOR': 10, 'CAR': 12, 'FLA': 13, 'TBL': 14, 'WSH': 15, 'CHI': 16, 'DET': 17, 'NSH': 18,
+    'STL': 19, 'CGY': 20, 'COL': 21, 'EDM': 22, 'VAN': 23, 'ANA': 24, 'DAL': 25, 'LAK': 26,
+    'SJS': 28, 'CBJ': 29, 'MIN': 30, 'WPG': 52, 'ARI': 53, 'VGK': 54, 'SEA': 55,
+  };
+  return abbrevMap[abbrev.toUpperCase()] || 0;
 }

@@ -89,14 +89,31 @@ export async function refreshPlayerLeaders(): Promise<PlayerLeadersResponse> {
   isRefreshingPlayers = true;
   try {
     console.log('Refreshing player leaders from API...');
-    const [pointsLeaders, goalsLeaders] = await Promise.all([
-      fetchPlayerLeaders('points', 25),
-      fetchPlayerLeaders('goals', 25),
+    
+    // Fetch with timeout and error handling
+    const fetchWithTimeout = async (statType: 'points' | 'goals', timeout: number = 30000) => {
+      return Promise.race([
+        fetchPlayerLeaders(statType, 25),
+        new Promise<PlayerLeader[]>((_, reject) => 
+          setTimeout(() => reject(new Error(`Timeout fetching ${statType} leaders`)), timeout)
+        ),
+      ]);
+    };
+
+    const [pointsLeaders, goalsLeaders] = await Promise.allSettled([
+      fetchWithTimeout('points').catch(err => {
+        console.warn('Failed to fetch points leaders:', err.message);
+        return [];
+      }),
+      fetchWithTimeout('goals').catch(err => {
+        console.warn('Failed to fetch goals leaders:', err.message);
+        return [];
+      }),
     ]);
     
     const data: PlayerLeadersResponse = {
-      points: pointsLeaders,
-      goals: goalsLeaders,
+      points: pointsLeaders.status === 'fulfilled' ? pointsLeaders.value : [],
+      goals: goalsLeaders.status === 'fulfilled' ? goalsLeaders.value : [],
     };
     
     playerLeadersCache = {
@@ -107,7 +124,16 @@ export async function refreshPlayerLeaders(): Promise<PlayerLeadersResponse> {
     return data;
   } catch (error) {
     console.error('Error refreshing player leaders:', error);
-    throw error;
+    // Return empty data instead of throwing to allow app to continue
+    const emptyData: PlayerLeadersResponse = {
+      points: [],
+      goals: [],
+    };
+    playerLeadersCache = {
+      data: emptyData,
+      lastUpdated: new Date(),
+    };
+    return emptyData;
   } finally {
     isRefreshingPlayers = false;
   }

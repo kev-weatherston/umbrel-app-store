@@ -177,11 +177,8 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            NHL Standings
+            NHL Leaderboards
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Current season team standings
-          </p>
         </header>
 
         {/* Tabs */}

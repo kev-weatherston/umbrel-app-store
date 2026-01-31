@@ -43,34 +43,22 @@ export default function PlayerLeaderboard({ players, statType, loading = false }
               Team
             </th>
             {statType === 'points' ? (
-              <>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Pts
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  G
-                </th>
-              </>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Pts
+              </th>
             ) : (
-              <>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  G
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Pts
-                </th>
-              </>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                G
+              </th>
             )}
-            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              GP
-            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           {players.map((player) => {
-            const teamAbbrev = getTeamAbbrevFromId(player.teamId);
+            const teamAbbrev = player.teamAbbrev || getTeamAbbrevFromId(player.teamId);
             const logoUrl = getTeamLogoUrl(teamAbbrev);
-            const playerPhotoUrl = `https://cms.nhl.bamgrid.com/images/headshots/current/168x168/${player.player.id}.jpg`;
+            // Use headshot URL from API if available, otherwise fallback to NHL CDN
+            const playerPhotoUrl = player.headshotUrl || `https://cms.nhl.bamgrid.com/images/headshots/current/168x168/${player.player.id}.jpg`;
 
             return (
               <tr 
@@ -121,27 +109,14 @@ export default function PlayerLeaderboard({ players, statType, loading = false }
                   </div>
                 </td>
                 {statType === 'points' ? (
-                  <>
-                    <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-gray-100">
-                      {player.points}
-                    </td>
-                    <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
-                      {player.goals}
-                    </td>
-                  </>
+                  <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-gray-100">
+                    {player.points}
+                  </td>
                 ) : (
-                  <>
-                    <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-gray-100">
-                      {player.goals}
-                    </td>
-                    <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
-                      {player.points}
-                    </td>
-                  </>
+                  <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-gray-100">
+                    {player.goals}
+                  </td>
                 )}
-                <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
-                  {player.games}
-                </td>
               </tr>
             );
           })}

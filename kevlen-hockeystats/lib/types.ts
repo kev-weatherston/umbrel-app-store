@@ -229,6 +229,7 @@ export interface PlayerLeader {
   points: number;
   games: number;
   rank: number;
+  headshotUrl?: string; // Optional headshot URL from API
 }
 
 export interface PlayerLeadersResponse {

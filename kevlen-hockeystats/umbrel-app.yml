@@ -2,7 +2,7 @@ manifestVersion: 1
 id: kevlen-hockeystats
 name: HockeyStats
 tagline: NHL Standings and Statistics
-icon: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats/hockey.png
+icon: https://raw.githubusercontent.com/kev-weatherston/umbrel-app-store/main/kevlen-hockeystats/hockey.png
 category: Sports
 version: "1.1.1"
 port: 3000
@@ -12,9 +12,7 @@ description: >-
   Includes a widget view for Edmonton Oilers and Toronto Maple Leafs.
   
 developer: kevin
-website: https://umbrel.com
 submitter: kevin
-submission: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats
 repo: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats
 support: https://github.com/kev-weatherston/umbrel-app-store/kevlen-hockeystats/issues
 gallery:
