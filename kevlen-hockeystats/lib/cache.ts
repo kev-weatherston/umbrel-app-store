@@ -1,4 +1,4 @@
-import { StandingsResponse, StandingsCache, PlayerLeadersResponse } from './types';
+import { StandingsResponse, StandingsCache, PlayerLeadersResponse, PlayerLeader } from './types';
 import { fetchStandings, fetchPlayerLeaders } from './nhl-api';
 
 let cache: StandingsCache | null = null;
