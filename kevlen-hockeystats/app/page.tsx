@@ -5,10 +5,12 @@ import { StandingsResponse, StandingsRecord, PlayerLeader } from '@/lib/types';
 import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision } from '@/lib/nhl-api';
 import StandingsTable from '@/components/StandingsTable';
 import PlayerLeaderboard from '@/components/PlayerLeaderboard';
+import { useUmbrel } from '@/lib/use-umbrel';
 
 const FAVORITE_TEAMS = ['TOR', 'EDM'];
 
 export default function HomePage() {
+  const { isInUmbrel } = useUmbrel();
   const [standings, setStandings] = useState<StandingsResponse | null>(null);
   const [playerLeaders, setPlayerLeaders] = useState<{ points: PlayerLeader[]; goals: PlayerLeader[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,8 +174,11 @@ export default function HomePage() {
   
   const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0];
 
+  // Adjust padding based on Umbrel iframe context
+  const containerPadding = isInUmbrel ? 'p-4 sm:p-6' : 'py-8 px-4 sm:px-6 lg:px-8';
+
   return (
-    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div className={`min-h-screen ${containerPadding}`}>
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">

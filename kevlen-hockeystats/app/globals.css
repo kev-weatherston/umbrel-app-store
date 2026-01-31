@@ -25,3 +25,14 @@ body {
     )
     rgb(var(--background-start-rgb));
 }
+
+/* Umbrel iframe integration - seamless appearance */
+body.umbrel-iframe {
+  background: transparent;
+  background-image: none;
+}
+
+html.umbrel-iframe,
+body.umbrel-iframe {
+  overflow-x: hidden;
+}
