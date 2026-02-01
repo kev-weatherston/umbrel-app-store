@@ -6,8 +6,7 @@ import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision } from '@/lib/nhl-
 import StandingsTable from '@/components/StandingsTable';
 import PlayerLeaderboard from '@/components/PlayerLeaderboard';
 import { useUmbrel } from '@/lib/use-umbrel';
-
-const FAVORITE_TEAMS = ['TOR', 'EDM'];
+import { FAVORITE_TEAMS } from '@/lib/constants';
 
 export default function HomePage() {
   const { isInUmbrel } = useUmbrel();

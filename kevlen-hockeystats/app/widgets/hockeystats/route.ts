@@ -1,23 +1,22 @@
 import { NextResponse } from 'next/server';
 import { getStandings } from '@/lib/cache';
-import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision } from '@/lib/nhl-api';
+import { getAllTeams, sortTeamsByPoints, groupTeamsByDivision, getTeamLogoUrl } from '@/lib/nhl-api';
 import { TeamRecord } from '@/lib/types';
-
-const FAVORITE_TEAMS = ['TOR', 'EDM'];
+import { FAVORITE_TEAMS } from '@/lib/constants';
 
 export async function GET() {
   try {
     const standings = getStandings();
     
     if (!standings) {
-      // Return placeholder data so widget still shows structure
+      // Return placeholder data dynamically based on FAVORITE_TEAMS constant
       return NextResponse.json({
         type: 'list',
         refresh: '5m',
-        items: [
-          { title: 'Toronto Maple Leafs', text: '-', subtext: 'Loading...' },
-          { title: 'Edmonton Oilers', text: '-', subtext: 'Loading...' },
-        ],
+        items: FAVORITE_TEAMS.map((teamAbbrev) => ({
+          image: getTeamLogoUrl(teamAbbrev),
+          text: 'Loading...',
+        })),
       });
     }
 
@@ -68,29 +67,6 @@ export async function GET() {
           }) + 1
         : null;
 
-      // Determine playoff/wildcard status
-      // NHL: Top 3 in each division = playoff (P)
-      // Wildcard: 2 teams per conference (positions 4-5 in conference standings)
-      let playoffStatus = '';
-      
-      if (divisionRank !== null) {
-        // Top 3 in division = automatic playoff spot
-        if (divisionRank <= 3) {
-          playoffStatus = 'P';
-        } else {
-          // Check wildcard sequence from API (if available)
-          // wildcardSequence indicates position in wildcard race (1 or 2)
-          const wildcardSequence = team.wildcardSequence;
-          if (wildcardSequence && wildcardSequence > 0) {
-            playoffStatus = `WC${wildcardSequence}`;
-          } else {
-            // Fallback: if division rank is 4 or 5, might be wildcard
-            // But we can't determine this without conference-wide standings
-            // So we'll only show P for top 3, and WC if wildcardSequence exists
-          }
-        }
-      }
-
       let teamAbbrev: string;
       if (team.teamAbbrev && typeof team.teamAbbrev === 'object' && 'default' in team.teamAbbrev) {
         teamAbbrev = team.teamAbbrev.default;
@@ -100,30 +76,27 @@ export async function GET() {
         teamAbbrev = team.team?.abbreviation || '';
       }
 
-      const teamName = team.placeName?.default || 
-                       (team.teamName && typeof team.teamName === 'object' ? team.teamName.default : team.teamName) || 
-                       team.team?.name || 
-                       'Unknown';
-
       const points = team.points || 0;
+      const logoUrl = getTeamLogoUrl(teamAbbrev);
 
-      // Build subtext: overall rank, division rank, playoff status
-      const subtextParts: string[] = [];
-      subtextParts.push(`#${overallRank}`);
-      
-      if (divisionRank !== null && divisionRecord) {
-        subtextParts.push(`${divisionRecord.division.nameShort} #${divisionRank}`);
-      }
-      
-      if (playoffStatus) {
-        subtextParts.push(playoffStatus);
+      // Format: points, overall_position, division_position
+      const textParts: string[] = [];
+      textParts.push(`${points} pts`);
+      textParts.push(`#${overallRank}`);
+      if (divisionRank !== null) {
+        textParts.push(`#${divisionRank}`);
       }
 
-      return {
-        title: teamName,
-        text: `${points} pts`,
-        subtext: subtextParts.join(', '),
+      const item: any = {
+        text: textParts.join(', '),
       };
+
+      // Add image/logo
+      if (logoUrl) {
+        item.image = logoUrl;
+      }
+
+      return item;
     });
 
     return NextResponse.json({
@@ -138,14 +111,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Error in widget API route:', error);
-    // Return placeholder data on error
+    // Return placeholder data dynamically based on FAVORITE_TEAMS constant
     return NextResponse.json({
       type: 'list',
       refresh: '5m',
-      items: [
-        { title: 'Toronto Maple Leafs', text: '-', subtext: 'Error loading data' },
-        { title: 'Edmonton Oilers', text: '-', subtext: 'Error loading data' },
-      ],
+      items: FAVORITE_TEAMS.map((teamAbbrev) => ({
+        image: getTeamLogoUrl(teamAbbrev),
+        text: 'Error loading data',
+      })),
     }, { status: 500 });
   }
 }
