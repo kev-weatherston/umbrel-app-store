@@ -27,12 +27,25 @@ export function startScheduler(): void {
   cronJob = cron.schedule(cronExpression, async () => {
     console.log('Scheduled refresh triggered at 6:00 AM');
     try {
-      await Promise.all([
+      const results = await Promise.allSettled([
         refreshStandings(),
         refreshPlayerLeaders(),
       ]);
+      
+      // Log results
+      if (results[0].status === 'fulfilled') {
+        console.log('Standings refresh completed successfully');
+      } else {
+        console.error('Standings refresh failed:', results[0].reason);
+      }
+      
+      if (results[1].status === 'fulfilled') {
+        console.log('Player leaders refresh completed successfully');
+      } else {
+        console.error('Player leaders refresh failed:', results[1].reason);
+      }
     } catch (error) {
-      console.error('Error during scheduled refresh:', error);
+      console.error('Unexpected error during scheduled refresh:', error);
     }
   }, {
     scheduled: true,

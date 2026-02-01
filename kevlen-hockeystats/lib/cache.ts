@@ -87,6 +87,8 @@ export async function refreshPlayerLeaders(): Promise<PlayerLeadersResponse> {
   }
 
   isRefreshingPlayers = true;
+  const previousCache = playerLeadersCache; // Preserve previous cache in case of failure
+  
   try {
     console.log('Refreshing player leaders from API...');
     
@@ -101,39 +103,62 @@ export async function refreshPlayerLeaders(): Promise<PlayerLeadersResponse> {
     };
 
     const [pointsLeaders, goalsLeaders] = await Promise.allSettled([
-      fetchWithTimeout('points').catch(err => {
-        console.warn('Failed to fetch points leaders:', err.message);
-        return [];
-      }),
-      fetchWithTimeout('goals').catch(err => {
-        console.warn('Failed to fetch goals leaders:', err.message);
-        return [];
-      }),
+      fetchWithTimeout('points'),
+      fetchWithTimeout('goals'),
     ]);
     
-    const data: PlayerLeadersResponse = {
-      points: pointsLeaders.status === 'fulfilled' ? pointsLeaders.value : [],
-      goals: goalsLeaders.status === 'fulfilled' ? goalsLeaders.value : [],
-    };
+    // Check results and use previous cache for failed fetches
+    const pointsSuccess = pointsLeaders.status === 'fulfilled' && pointsLeaders.value.length > 0;
+    const goalsSuccess = goalsLeaders.status === 'fulfilled' && goalsLeaders.value.length > 0;
     
-    playerLeadersCache = {
-      data,
-      lastUpdated: new Date(),
-    };
-    console.log(`Player leaders refreshed successfully at ${playerLeadersCache.lastUpdated.toISOString()}`);
-    return data;
+    if (pointsLeaders.status === 'rejected') {
+      console.warn('Failed to fetch points leaders:', pointsLeaders.reason);
+    }
+    if (goalsLeaders.status === 'rejected') {
+      console.warn('Failed to fetch goals leaders:', goalsLeaders.reason);
+    }
+    
+    // Use new data if successful, otherwise preserve from previous cache
+    const pointsData = pointsSuccess 
+      ? pointsLeaders.value 
+      : (previousCache?.data.points || []);
+    const goalsData = goalsSuccess 
+      ? goalsLeaders.value 
+      : (previousCache?.data.goals || []);
+    
+    // Only update cache if we got valid data for at least one stat type
+    if (pointsSuccess || goalsSuccess) {
+      const data: PlayerLeadersResponse = {
+        points: pointsData,
+        goals: goalsData,
+      };
+      
+      playerLeadersCache = {
+        data,
+        lastUpdated: new Date(),
+      };
+      console.log(`Player leaders refreshed successfully at ${playerLeadersCache.lastUpdated.toISOString()}`);
+      console.log(`  Points leaders: ${pointsData.length} ${pointsSuccess ? '(fresh)' : '(cached)'}, Goals leaders: ${goalsData.length} ${goalsSuccess ? '(fresh)' : '(cached)'}`);
+      return data;
+    } else {
+      // Both failed - preserve previous cache and log error
+      console.error('Failed to refresh player leaders - preserving previous cache');
+      if (previousCache) {
+        console.log(`  Using cached data from ${previousCache.lastUpdated.toISOString()}`);
+        return previousCache.data;
+      }
+      // No previous cache - return empty but don't cache it
+      throw new Error('Failed to fetch player leaders and no previous cache available');
+    }
   } catch (error) {
     console.error('Error refreshing player leaders:', error);
-    // Return empty data instead of throwing to allow app to continue
-    const emptyData: PlayerLeadersResponse = {
-      points: [],
-      goals: [],
-    };
-    playerLeadersCache = {
-      data: emptyData,
-      lastUpdated: new Date(),
-    };
-    return emptyData;
+    // Preserve previous cache if available
+    if (previousCache) {
+      console.log('Preserving previous player leaders cache due to error');
+      return previousCache.data;
+    }
+    // No previous cache - throw error so scheduler knows it failed
+    throw error;
   } finally {
     isRefreshingPlayers = false;
   }
