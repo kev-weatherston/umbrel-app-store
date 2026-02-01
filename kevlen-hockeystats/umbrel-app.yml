@@ -1,6 +1,6 @@
 manifestVersion: 1
 id: kevlen-hockeystats
-name: HockeyStats
+name: Hockey Stats
 tagline: NHL Standings and Statistics
 icon: https://github.com/kev-weatherston/umbrel-app-store/blob/master/kevlen-hockeystats/hockey.png?raw=true
 category: Sports
