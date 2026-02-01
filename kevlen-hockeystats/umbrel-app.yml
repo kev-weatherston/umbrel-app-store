@@ -4,7 +4,7 @@ name: HockeyStats
 tagline: NHL Standings and Statistics
 icon: https://github.com/kev-weatherston/umbrel-app-store/blob/master/kevlen-hockeystats/hockey.png?raw=true
 category: Sports
-version: "1.3.2"
+version: "1.4.0"
 port: 3000
 description: >-
   View current NHL season leaderboard including player goals and points, as well as, team standings, grouped by overall league and division.
@@ -23,3 +23,19 @@ dependencies: []
 path: ""
 defaultUsername: ""
 defaultPassword: ""
+widgets:
+  - id: "hockeystats"
+    type: "list"
+    refresh: "5m"
+    endpoint: "server:3000/widgets/hockeystats"
+    link: ""
+    example:
+      type: "list"
+      link: ""
+      items:
+        - title: "Toronto Maple Leafs"
+          text: "45 pts"
+          subtext: "#1, ATL #1, P"
+        - title: "Edmonton Oilers"
+          text: "42 pts"
+          subtext: "#2, PAC #1, P"
